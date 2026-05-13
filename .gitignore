@@ -1,0 +1,26 @@
+# Environment and secrets
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+backend/venv/
+
+# Node/Vite
+frontend/node_modules/
+frontend/dist/
+
+# Runtime document/vector data
+backend/data/docs/
+backend/data/vector_store/
+backend/knowledge_base/index/
+
+# Logs and local OS/editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

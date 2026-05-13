@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pdfplumber
+sentence-transformers
+faiss-cpu
+groq
+python-dotenv
+pydantic-settings
