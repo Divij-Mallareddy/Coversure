@@ -36,6 +36,18 @@ export function ChatPanel({
                 )}
               >
                 {message.content}
+                {message.role === 'ai' && Array.isArray(message.sources) && message.sources.length > 0 && (
+                  <div className="mt-4 border-t border-slate-200 pt-3">
+                    <p className="text-xs font-semibold text-slate-500">Sources used:</p>
+                    <ul className="mt-1 space-y-1">
+                      {message.sources.map((source) => (
+                        <li key={source} className="text-xs text-slate-500">
+                          • {source}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           ))}

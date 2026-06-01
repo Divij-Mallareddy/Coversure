@@ -5,19 +5,53 @@ import { Navbar } from './components/Navbar';
 import { UploadPanel } from './components/UploadPanel';
 
 const API_BASE = 'http://127.0.0.1:8000';
+const MAX_SELECTED_DOCS = 5;
 
 function App() {
   const [mode, setMode] = useState('single');
   const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState([]);
+  const [knowledgeDocuments, setKnowledgeDocuments] = useState([]);
+  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [selectionMessage, setSelectionMessage] = useState('');
   const [uploadStatus, setUploadStatus] = useState('success');
   const [query, setQuery] = useState('');
   const [isAsking, setIsAsking] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
+    const loadKnowledgeDocuments = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/knowledge/documents`);
+        setKnowledgeDocuments(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        setKnowledgeDocuments([]);
+      }
+    };
+
+    loadKnowledgeDocuments();
+  }, []);
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAsking]);
+
+  const toggleKnowledgeDocument = (documentId) => {
+    setSelectedDocs((currentDocs) => {
+      if (currentDocs.includes(documentId)) {
+        setSelectionMessage('');
+        return currentDocs.filter((id) => id !== documentId);
+      }
+
+      if (currentDocs.length >= MAX_SELECTED_DOCS) {
+        setSelectionMessage('Maximum 5 documents allowed');
+        return currentDocs;
+      }
+
+      setSelectionMessage('');
+      return [...currentDocs, documentId];
+    });
+  };
 
   const handleModeSwitch = async (newMode) => {
     setMode(newMode);
@@ -101,13 +135,21 @@ function App() {
     setIsAsking(true);
 
     try {
-      const res = await axios.post(`${API_BASE}/ask/?query=${encodeURIComponent(currentQuery)}`);
+      const res = await axios.post(`${API_BASE}/ask/`, {
+        question: currentQuery,
+        selected_docs: selectedDocs,
+      });
       const answer = res.data.answer || res.data.error || 'No answer was returned.';
-      setMessages((currentMessages) => [...currentMessages, { role: 'ai', content: answer }]);
+      const sources = Array.isArray(res.data.sources) ? [...new Set(res.data.sources)] : [];
+      setMessages((currentMessages) => [...currentMessages, { role: 'ai', content: answer, sources }]);
     } catch (err) {
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string' && detail.trim()
+        ? `Backend error: ${detail}`
+        : 'Sorry, I encountered an error answering your question.';
       setMessages((currentMessages) => [
         ...currentMessages,
-        { role: 'ai', content: 'Sorry, I encountered an error answering your question.' },
+        { role: 'ai', content: message },
       ]);
     } finally {
       setIsAsking(false);
@@ -127,6 +169,10 @@ function App() {
           onRemoveFile={removeFile}
           onUpload={handleUpload}
           onRestart={() => setUploadStatus('idle')}
+          knowledgeDocuments={knowledgeDocuments}
+          selectedDocs={selectedDocs}
+          selectionMessage={selectionMessage}
+          onToggleDocument={toggleKnowledgeDocument}
         />
         <ChatPanel
           messages={messages}

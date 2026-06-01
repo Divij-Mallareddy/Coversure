@@ -6,16 +6,17 @@ import faiss
 import numpy as np
 
 from config.settings import settings
+from services.embeddings import get_embedding_dimension
 
 
 class KnowledgeVectorIndex:
-    def __init__(self, index_dir: Path, dimension: int = 384):
+    def __init__(self, index_dir: Path, dimension: int | None = None):
         self.index_dir = index_dir
-        self.dimension = dimension
+        self.dimension = dimension or get_embedding_dimension()
         self.index_path = index_dir / "knowledge.faiss"
         self.metadata_path = index_dir / "chunks.json"
         self.manifest_path = index_dir / "manifest.json"
-        self.index = faiss.IndexFlatIP(dimension)
+        self.index = faiss.IndexFlatIP(self.dimension)
         self.metadata: list[dict] = []
         self.index_dir.mkdir(parents=True, exist_ok=True)
         self.load()
@@ -30,6 +31,7 @@ class KnowledgeVectorIndex:
             return
 
         self.index = faiss.read_index(str(self.index_path))
+        self.dimension = self.index.d
         self.metadata = json.loads(self.metadata_path.read_text(encoding="utf-8"))
 
     def save(self, manifest: dict | None = None) -> None:
@@ -46,6 +48,7 @@ class KnowledgeVectorIndex:
         self.reset()
         if chunks:
             vectors = _normalize(np.array(embeddings, dtype=np.float32))
+            self._ensure_dimension(vectors.shape[1])
             self.index.add(vectors)
             self.metadata = [asdict(chunk) for chunk in chunks]
         self.save(manifest)
@@ -67,7 +70,14 @@ class KnowledgeVectorIndex:
                 continue
             item = dict(self.metadata[index])
             item["score"] = confidence
+            item["similarity_score"] = confidence
             item["confidence"] = confidence
+            item["metadata"] = {
+                "page": item.get("page"),
+                "heading": item.get("heading"),
+                "section": item.get("section"),
+                "source_document": item.get("source_path") or item.get("document"),
+            }
             results.append(item)
         return results
 
@@ -75,6 +85,14 @@ class KnowledgeVectorIndex:
         if not self.manifest_path.exists():
             return {}
         return json.loads(self.manifest_path.read_text(encoding="utf-8"))
+
+    def _ensure_dimension(self, dimension: int) -> None:
+        if dimension == self.dimension:
+            return
+        if self.index.ntotal > 0:
+            raise ValueError(f"Embedding dimension changed from {self.dimension} to {dimension}. Rebuild the knowledge index.")
+        self.dimension = dimension
+        self.index = faiss.IndexFlatIP(self.dimension)
 
 
 def _normalize(vectors: np.ndarray) -> np.ndarray:

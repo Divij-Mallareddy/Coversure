@@ -32,6 +32,9 @@ class KnowledgeChunk:
     chunk_index: int
     start_word: int
     end_word: int
+    page: int | None = None
+    heading: str | None = None
+    section: str | None = None
     source_type: str = "knowledge_base"
 
 

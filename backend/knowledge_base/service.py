@@ -69,13 +69,21 @@ class KnowledgeBaseService:
         )
         return self.status()
 
-    def retrieve(self, query: str, top_k: int | None = None) -> list[dict]:
+    def retrieve(self, query: str, selected_docs: list[str] | None = None, top_k: int | None = None) -> list[dict]:
         self.sync()
         if self.vector_index.is_empty:
             return []
 
         query_embedding = get_embeddings([query])[0]
-        results = self.vector_index.search(query_embedding, top_k=top_k)
+        selected_doc_ids = {doc for doc in selected_docs or [] if doc}
+        search_top_k = self.vector_index.index.ntotal if selected_doc_ids else top_k
+        results = self.vector_index.search(query_embedding, top_k=search_top_k)
+        if selected_doc_ids:
+            results = [
+                result
+                for result in results
+                if result.get("source_path") in selected_doc_ids
+            ][: top_k or settings.KNOWLEDGE_TOP_K]
         if results:
             source_log = [
                 {
@@ -87,6 +95,32 @@ class KnowledgeBaseService:
             ]
             logger.info("Retrieved knowledge sources: %s", source_log)
         return results
+
+    def documents(self) -> list[dict]:
+        self.sync()
+        manifest = self.vector_index.read_manifest()
+        docs = []
+
+        for file in manifest.get("files", []):
+            path = file.get("path")
+            if not path:
+                continue
+
+            name = Path(path).stem
+            title = (
+                name.replace("-", " ")
+                .replace("_", " ")
+                .title()
+            )
+
+            docs.append(
+                {
+                    "id": path.replace("\\", "/"),
+                    "title": title,
+                }
+            )
+
+        return docs
 
     def status(self) -> dict:
         manifest = self.vector_index.read_manifest()

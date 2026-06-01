@@ -1,4 +1,5 @@
 import { CheckCircle, File, Loader2, RefreshCw, UploadCloud, X } from 'lucide-react';
+import { KnowledgeDocuments } from './KnowledgeDocuments';
 
 export function UploadPanel({
   mode,
@@ -9,6 +10,10 @@ export function UploadPanel({
   onRemoveFile,
   onUpload,
   onRestart,
+  knowledgeDocuments,
+  selectedDocs,
+  selectionMessage,
+  onToggleDocument,
 }) {
   const isSingleMode = mode === 'single';
 
@@ -41,6 +46,13 @@ export function UploadPanel({
           className="hidden"
         />
       </label>
+
+      <KnowledgeDocuments
+        documents={knowledgeDocuments}
+        selectedDocs={selectedDocs}
+        selectionMessage={selectionMessage}
+        onToggleDocument={onToggleDocument}
+      />
 
       {files.length > 0 && (
         <div className="mt-6 flex flex-col gap-2 flex-1">

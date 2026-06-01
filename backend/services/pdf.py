@@ -3,13 +3,17 @@ import re
 from fastapi import UploadFile
 
 def extract_text_from_pdf(file: UploadFile) -> str:
-    text = ""
+    text_parts = []
     with pdfplumber.open(file.file) as pdf:
-        for page in pdf.pages:
+        for page_number, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text()
             if page_text:
-                text += page_text + "\n"
-    
-    # Clean up excess whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+                text_parts.append(f"[Page {page_number}]\n{_clean_page_text(page_text)}")
+
+    return "\n\n".join(text_parts).strip()
+
+
+def _clean_page_text(text: str) -> str:
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()

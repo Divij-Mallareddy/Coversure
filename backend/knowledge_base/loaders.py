@@ -131,4 +131,6 @@ def _normalize_tags(tags: Any) -> list[str]:
 
 
 def _clean_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
